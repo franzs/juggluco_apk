@@ -1,0 +1,77 @@
+name: Download+Release Juggluco
+
+# Controls when the workflow will run
+on:
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '23 1 * * *' # Google causes problems sometimes when downloads are too frequent
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  apk:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get apk from Google Drive
+        run: |
+          fileid="${{ vars.GOOGLE_DRIVE_FILE_ID }}"
+          url="https://drive.usercontent.google.com/download?id=${fileid}&export=download&confirm=t"
+          curl --location --remote-name --remote-header-name "${url}"
+          filename=$(ls -1 *.apk)
+          echo "filename=${filename}" >> $GITHUB_ENV
+
+      - name: Store SHA256 hash of new apk
+        run: sha256sum "${{ env.filename }}" | cut -d " " -f 1 > hash_new_file
+
+      - name: Read current and new hash of apk
+        run: |
+          echo "current_hash=$(cat hash_current_file)" >> $GITHUB_ENV
+          echo "new_hash=$(cat hash_new_file)" >> $GITHUB_ENV
+
+      - name: Record last update date and update current hash
+        if: ${{ env.current_hash != env.new_hash }}
+        run: |
+          date --iso-8601=seconds > last_update_date
+          echo "last_update_date_env=$(cat last_update_date)" >> $GITHUB_ENV
+          mv hash_new_file hash_current_file
+
+      # https://code.whatever.social/questions/13469147/get-android-apk-file-versionname-or-versioncode-without-installing-apk
+      - name: Find version number
+        if: ${{ env.current_hash != env.new_hash }}
+        run: |
+          sudo apt-get install -y aapt
+          version=`aapt dump badging ${{ env.filename }} | grep -Po "(?<=\sversionName=')([0-9.]+)"`
+          echo "version=${version}" >> $GITHUB_ENV
+
+      - name: Write tag name
+        if: ${{ env.current_hash != env.new_hash }}
+        run: |
+          ver="${{ env.version }}"
+          tagname="v${ver}"
+          echo "tagname=${tagname}" >> $GITHUB_ENV
+
+      - name: Release apk if hashes are different
+        if: ${{ env.current_hash != env.new_hash }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.tagname }}
+          body: "New version of Juggluco"
+          files: ${{ env.filename }}
+
+      - name: Commit and push the change
+        if: ${{ env.current_hash != env.new_hash }}
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: Update the hash and update date
+          files: |
+            hash_current_file
+            last_update_date
