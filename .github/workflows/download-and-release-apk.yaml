@@ -59,12 +59,30 @@ jobs:
           tagname="v${ver}"
           echo "tagname=${tagname}" >> $GITHUB_ENV
 
+      - name: Get changelog
+        if: ${{ env.current_hash != env.new_hash }}
+        run: |
+          changelog="changes.html"
+          url="https://www.juggluco.nl/Juggluco/${changelog}"
+          curl --location --remote-name --output "${changelog}" "${url}"
+          echo "changelog=${changelog}" >> $GITHUB_ENV
+
+      - name: Get changes
+        if: ${{ env.current_hash != env.new_hash }}
+        run: |
+          python_dir="parse_changelog"
+          changes_file="changes.md"
+          python -m pip install --upgrade pip
+          pip install -r "${python_dir}/requirements.txt"
+          python "${python_dir}/parse_changelog.py" "${{ env.changelog }}" "${{ env.version }}" > "${changes_file}"
+          echo "changes_file=${changes_file}" >> $GITHUB_ENV
+
       - name: Release apk if hashes are different
         if: ${{ env.current_hash != env.new_hash }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.tagname }}
-          body: "New version of Juggluco"
+          body_path: ${{ env.changes_file }}
           files: ${{ env.filename }}
 
       - name: Commit and push the change
