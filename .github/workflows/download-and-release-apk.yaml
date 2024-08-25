@@ -35,11 +35,9 @@ jobs:
           echo "current_hash=$(cat hash_current_file)" >> $GITHUB_ENV
           echo "new_hash=$(cat hash_new_file)" >> $GITHUB_ENV
 
-      - name: Record last update date and update current hash
+      - name: Update current hash
         if: ${{ env.current_hash != env.new_hash }}
         run: |
-          date --iso-8601=seconds > last_update_date
-          echo "last_update_date_env=$(cat last_update_date)" >> $GITHUB_ENV
           mv hash_new_file hash_current_file
 
       # https://code.whatever.social/questions/13469147/get-android-apk-file-versionname-or-versioncode-without-installing-apk
@@ -80,7 +78,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "Update for version ${{ env.version }}"
-          file_pattern: "hash_current_file last_update_date"
+          file_pattern: "hash_current_file"
 
       - name: Release apk if hashes are different
         if: ${{ env.current_hash != env.new_hash }}
