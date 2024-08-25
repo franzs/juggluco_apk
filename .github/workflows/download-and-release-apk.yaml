@@ -30,10 +30,8 @@ jobs:
           echo "filename=${filename}" >> $GITHUB_ENV
 
       - name: Store SHA256 hash of new apk
-        run: sha256sum "${{ env.filename }}" | cut -d " " -f 1 > hash_new_file
-
-      - name: Read current and new hash of apk
         run: |
+          sha256sum "${{ env.filename }}" | cut -d " " -f 1 > hash_new_file
           echo "current_hash=$(cat hash_current_file)" >> $GITHUB_ENV
           echo "new_hash=$(cat hash_new_file)" >> $GITHUB_ENV
 
