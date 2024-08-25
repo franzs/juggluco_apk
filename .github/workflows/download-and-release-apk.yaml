@@ -1,21 +1,17 @@
 name: Download+Release Juggluco
 
-# Controls when the workflow will run
 on:
   schedule:
     # * is a special character in YAML so you have to quote this string
-    - cron:  '23 1 * * *' # Google causes problems sometimes when downloads are too frequent
+    - cron:  '23 1 * * *'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   retrieve_apk:
-    # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,12 +31,10 @@ jobs:
           echo "new_hash=$(cat hash_new_file)" >> $GITHUB_OUTPUT
 
   release_apk:
-    # The type of runner that the job will run on
     runs-on: ubuntu-latest
     needs: retrieve_apk
     if: ${{ needs.build.outputs.current_hash != needs.build.outputs.new_hash }}
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: Update current hash
         run: |
