@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  retrieve_apk:
+  download_apk:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,7 +24,7 @@ jobs:
           filename=$(ls -1 *.apk)
           echo "filename=${filename}" >> $GITHUB_ENV
 
-      - name: Store SHA256 hash of new apk
+      - name: Store SHA256 hash of apk
         run: |
           sha256sum "${{ env.filename }}" | cut -d " " -f 1 > hash_new_file
           echo "current_hash=$(cat hash_current_file)" >> $GITHUB_OUTPUT
@@ -60,7 +60,7 @@ jobs:
           curl --location --remote-name --output "${changelog}" "${url}"
           echo "changelog=${changelog}" >> $GITHUB_ENV
 
-      - name: Get changes
+      - name: Get changes from changelog
         run: |
           python_dir="parse_changelog"
           changes_file="changes.md"
@@ -69,13 +69,13 @@ jobs:
           python "${python_dir}/parse_changelog.py" "${{ env.changelog }}" "${{ env.version }}" > "${changes_file}"
           echo "changes_file=${changes_file}" >> $GITHUB_ENV
 
-      - name: Commit and push the change
+      - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "Update for version ${{ env.version }}"
           file_pattern: "hash_current_file"
 
-      - name: Release apk if hashes are different
+      - name: Release apk
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.tagname }}
