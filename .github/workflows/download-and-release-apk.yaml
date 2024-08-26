@@ -9,13 +9,32 @@ on:
   workflow_dispatch:
 
 jobs:
-  download_apk:
+  download_changelog:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Get changelog
+        run: |
+          changelog="changes.html"
+          url="https://www.juggluco.nl/Juggluco/${changelog}"
+          curl --location --remote-name --output "${changelog}" "${url}"
+          echo "changelog=${changelog}" >> $GITHUB_ENV
+
+      - name: Store SHA256 hash of changelog
+        run: |
+          sha256sum "${{ env.changelog }}" | cut -d " " -f 1 > hash_changelog_new
+          echo "hash_changelog_current=$(cat hash_changelog_current)" >> $GITHUB_OUTPUT
+          echo "hash_changelog_new=$(cat hash_changelog_new)" >> $GITHUB_OUTPUT
+
+  download_apk:
+    runs-on: ubuntu-latest
+    needs: download_changelog
+    if: ${{ needs.build.outputs.hash_changelog_current != needs.build.outputs.hash_changelog_new }}
+
+    steps:
       - name: Get apk from Google Drive
         run: |
           fileid="${{ vars.GOOGLE_DRIVE_FILE_ID }}"
@@ -26,20 +45,16 @@ jobs:
 
       - name: Store SHA256 hash of apk
         run: |
-          sha256sum "${{ env.filename }}" | cut -d " " -f 1 > hash_new_file
-          echo "current_hash=$(cat hash_current_file)" >> $GITHUB_OUTPUT
-          echo "new_hash=$(cat hash_new_file)" >> $GITHUB_OUTPUT
+          sha256sum "${{ env.filename }}" | cut -d " " -f 1 > hash_apk_new
+          echo "hash_apk_current=$(cat hash_apk_current)" >> $GITHUB_OUTPUT
+          echo "hash_apk_new=$(cat hash_apk_new)" >> $GITHUB_OUTPUT
 
   release_apk:
     runs-on: ubuntu-latest
     needs: download_apk
-    if: ${{ needs.build.outputs.current_hash != needs.build.outputs.new_hash }}
+    if: ${{ needs.build.outputs.hash_apk_current != needs.build.outputs.hash_apk_new }}
 
     steps:
-      - name: Update current hash
-        run: |
-          mv hash_new_file hash_current_file
-
       # https://code.whatever.social/questions/13469147/get-android-apk-file-versionname-or-versioncode-without-installing-apk
       - name: Find version number
         run: |
@@ -69,11 +84,16 @@ jobs:
           python "${python_dir}/parse_changelog.py" "${{ env.changelog }}" "${{ env.version }}" > "${changes_file}"
           echo "changes_file=${changes_file}" >> $GITHUB_ENV
 
+      - name: Update current hashes
+        run: |
+          mv hash_changelog_new hash_changelog_current
+          mv hash_apk_new hash_apk_current
+
       - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "Update for version ${{ env.version }}"
-          file_pattern: "hash_current_file"
+          file_pattern: "hash_changelog_current hash_apk_current"
 
       - name: Release apk
         uses: softprops/action-gh-release@v2
