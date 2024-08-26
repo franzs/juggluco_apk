@@ -20,7 +20,7 @@ jobs:
         run: |
           changelog="changes.html"
           url="https://www.juggluco.nl/Juggluco/${changelog}"
-          curl --location --remote-name --output "${changelog}" "${url}"
+          curl --location --output "${changelog}" "${url}"
           echo "changelog=${changelog}" >> $GITHUB_ENV
 
       - name: Store SHA256 hash of changelog
