@@ -21,13 +21,13 @@ jobs:
           changelog="changes.html"
           url="https://www.juggluco.nl/Juggluco/${changelog}"
           curl --location --output "${changelog}" "${url}"
-          echo "changelog=${changelog}" >> $GITHUB_ENV
+          echo "changelog=${changelog}" >>"${GITHUB_ENV}"
 
       - name: Store SHA256 hash of changelog
         run: |
-          sha256sum "${{ env.changelog }}" | cut -d " " -f 1 > hash_changelog_new
-          echo "hash_changelog_current=$(cat hash_changelog_current)" >> $GITHUB_OUTPUT
-          echo "hash_changelog_new=$(cat hash_changelog_new)" >> $GITHUB_OUTPUT
+          sha256sum "${{ env.changelog }}" | cut -d " " -f 1 >hash_changelog_new
+          echo "hash_changelog_current=$(cat hash_changelog_current)" >>"${GITHUB_OUTPUT}"
+          echo "hash_changelog_new=$(cat hash_changelog_new)" >>"${GITHUB_OUTPUT}"
 
   download_apk:
     runs-on: ubuntu-latest
@@ -41,13 +41,13 @@ jobs:
           url="https://drive.usercontent.google.com/download?id=${fileid}&export=download&confirm=t"
           curl --location --remote-name --remote-header-name "${url}"
           filename=$(ls -1 *.apk)
-          echo "filename=${filename}" >> $GITHUB_ENV
+          echo "filename=${filename}" >>"${GITHUB_ENV}"
 
       - name: Store SHA256 hash of apk
         run: |
-          sha256sum "${{ env.filename }}" | cut -d " " -f 1 > hash_apk_new
-          echo "hash_apk_current=$(cat hash_apk_current)" >> $GITHUB_OUTPUT
-          echo "hash_apk_new=$(cat hash_apk_new)" >> $GITHUB_OUTPUT
+          sha256sum "${{ env.filename }}" | cut -d " " -f 1 >hash_apk_new
+          echo "hash_apk_current=$(cat hash_apk_current)" >>"${GITHUB_OUTPUT}"
+          echo "hash_apk_new=$(cat hash_apk_new)" >>"${GITHUB_OUTPUT}"
 
   release_apk:
     runs-on: ubuntu-latest
@@ -60,20 +60,20 @@ jobs:
         run: |
           sudo apt-get install -y aapt
           version=`aapt dump badging ${{ env.filename }} | grep -Po "(?<=\sversionName=')([0-9.]+)"`
-          echo "version=${version}" >> $GITHUB_ENV
+          echo "version=${version}" >>"${GITHUB_ENV}"
 
       - name: Write tag name
         run: |
           ver="${{ env.version }}"
           tagname="v${ver}"
-          echo "tagname=${tagname}" >> $GITHUB_ENV
+          echo "tagname=${tagname}" >>"${GITHUB_ENV}"
 
       - name: Get changelog
         run: |
           changelog="changes.html"
           url="https://www.juggluco.nl/Juggluco/${changelog}"
           curl --location --remote-name --output "${changelog}" "${url}"
-          echo "changelog=${changelog}" >> $GITHUB_ENV
+          echo "changelog=${changelog}" >>"${GITHUB_ENV}"
 
       - name: Get changes from changelog
         run: |
@@ -81,8 +81,8 @@ jobs:
           changes_file="changes.md"
           python -m pip install --upgrade pip
           pip install -r "${python_dir}/requirements.txt"
-          python "${python_dir}/parse_changelog.py" "${{ env.changelog }}" "${{ env.version }}" > "${changes_file}"
-          echo "changes_file=${changes_file}" >> $GITHUB_ENV
+          python "${python_dir}/parse_changelog.py" "${{ env.changelog }}" "${{ env.version }}" >"${changes_file}"
+          echo "changes_file=${changes_file}" >>"${GITHUB_ENV}"
 
       - name: Update current hashes
         run: |
