@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  download_changelog:
+  release_apk:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,55 +25,48 @@ jobs:
 
       - name: Store SHA256 hash of changelog
         run: |
-          sha256sum "${{ env.changelog }}" | cut -d " " -f 1 >hash_changelog_new
-          echo "hash_changelog_current=$(cat hash_changelog_current)" >>"${GITHUB_OUTPUT}"
-          echo "hash_changelog_new=$(cat hash_changelog_new)" >>"${GITHUB_OUTPUT}"
+          sha256sum "${{ env.changelog }}" | cut -d " " -f 1 | sed -e 's/^/hash_changelog_new=/' >>"${GITHUB_ENV}"
+          echo "hash_changelog_current=$(cat hash_changelog_current)" >>"${GITHUB_ENV}"
 
-  download_apk:
-    runs-on: ubuntu-latest
-    needs: download_changelog
-    if: ${{ needs.build.outputs.hash_changelog_current != needs.build.outputs.hash_changelog_new }}
+      - name: Check for new changelog
+        run: |
+          if [ "${hash_changelog_current}" = "${hash_changelog_new}" ]; then
+            echo "No new changelog available. Exiting."
+            exit 0
+          fi
 
-    steps:
       - name: Get apk from Google Drive
         run: |
           fileid="${{ vars.GOOGLE_DRIVE_FILE_ID }}"
           url="https://drive.usercontent.google.com/download?id=${fileid}&export=download&confirm=t"
           curl --location --remote-name --remote-header-name "${url}"
-          filename=$(ls -1 *.apk)
-          echo "filename=${filename}" >>"${GITHUB_ENV}"
+          apk_filename=$(ls -1 *.apk)
+          echo "apk_filename=${apk_filename}" >>"${GITHUB_ENV}"
 
       - name: Store SHA256 hash of apk
         run: |
-          sha256sum "${{ env.filename }}" | cut -d " " -f 1 >hash_apk_new
-          echo "hash_apk_current=$(cat hash_apk_current)" >>"${GITHUB_OUTPUT}"
-          echo "hash_apk_new=$(cat hash_apk_new)" >>"${GITHUB_OUTPUT}"
+          sha256sum "${{ env.apk_filename }}" | cut -d " " -f 1 | sed -e 's/^/hash_apk_new=/' >>"${GITHUB_ENV}"
+          echo "hash_apk_current=$(cat hash_apk_current)" >>"${GITHUB_ENV}"
 
-  release_apk:
-    runs-on: ubuntu-latest
-    needs: download_apk
-    if: ${{ needs.build.outputs.hash_apk_current != needs.build.outputs.hash_apk_new }}
+      - name: Check for new apk
+        run: |
+          if [ "${hash_apk_current}" = "${hash_apk_new}" ]; then
+            echo "No new apk available. Exiting."
+            exit 0
+          fi
 
-    steps:
       # https://code.whatever.social/questions/13469147/get-android-apk-file-versionname-or-versioncode-without-installing-apk
-      - name: Find version number
+      - name: Find version number of apk
         run: |
           sudo apt-get install -y aapt
-          version=`aapt dump badging ${{ env.filename }} | grep -Po "(?<=\sversionName=')([0-9.]+)"`
-          echo "version=${version}" >>"${GITHUB_ENV}"
+          apk_version=$(aapt dump badging ${{ env.apk_filename }} | grep -Po "(?<=\sversionName=')([0-9.]+)")
+          echo "apk_version=${apk_version}" >>"${GITHUB_ENV}"
 
       - name: Write tag name
         run: |
-          ver="${{ env.version }}"
+          ver="${{ env.apk_version }}"
           tagname="v${ver}"
           echo "tagname=${tagname}" >>"${GITHUB_ENV}"
-
-      - name: Get changelog
-        run: |
-          changelog="changes.html"
-          url="https://www.juggluco.nl/Juggluco/${changelog}"
-          curl --location --remote-name --output "${changelog}" "${url}"
-          echo "changelog=${changelog}" >>"${GITHUB_ENV}"
 
       - name: Get changes from changelog
         run: |
@@ -81,18 +74,18 @@ jobs:
           changes_file="changes.md"
           python -m pip install --upgrade pip
           pip install -r "${python_dir}/requirements.txt"
-          python "${python_dir}/parse_changelog.py" "${{ env.changelog }}" "${{ env.version }}" >"${changes_file}"
+          python "${python_dir}/parse_changelog.py" "${{ env.changelog }}" "${{ env.apk_version }}" >"${changes_file}"
           echo "changes_file=${changes_file}" >>"${GITHUB_ENV}"
 
       - name: Update current hashes
         run: |
-          mv hash_changelog_new hash_changelog_current
-          mv hash_apk_new hash_apk_current
+          echo "${hash_changelog_new}" >hash_changelog_current
+          echo "${hash_apk_new}" >hash_apk_current
 
       - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Update for version ${{ env.version }}"
+          commit_message: "Update for version ${{ env.apk_version }}"
           file_pattern: "hash_changelog_current hash_apk_current"
 
       - name: Release apk
@@ -100,4 +93,4 @@ jobs:
         with:
           tag_name: ${{ env.tagname }}
           body_path: ${{ env.changes_file }}
-          files: ${{ env.filename }}
+          files: ${{ env.apk_filename }}
