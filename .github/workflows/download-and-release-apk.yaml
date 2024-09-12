@@ -35,10 +35,16 @@ jobs:
             exit 0
           fi
 
+      - name: Get fileid for apk
+        run: |
+          download="download.html"
+          url="https://www.juggluco.nl/Juggluco/${download}"
+          curl --location --output "${download}" "${url}"
+          grep 'Arm64 only (the usual case): ' "${download}" | sed -Ee 's/^.*\?id=([A-Za-z0-9]+)">.*$/apk_fileid=\1/' >>"${GITHUB_ENV}"
+
       - name: Get apk from Google Drive
         run: |
-          fileid="${{ vars.GOOGLE_DRIVE_FILE_ID }}"
-          url="https://drive.usercontent.google.com/download?id=${fileid}&export=download&confirm=t"
+          url="https://drive.usercontent.google.com/download?id=${{ env.apk_fileid }}&export=download&confirm=t"
           curl --location --remote-name --remote-header-name "${url}"
           apk_filename=$(ls -1 *.apk)
           echo "apk_filename=${apk_filename}" >>"${GITHUB_ENV}"
