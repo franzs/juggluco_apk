@@ -31,11 +31,15 @@ jobs:
       - name: Check for new changelog
         run: |
           if [ "${hash_changelog_current}" = "${hash_changelog_new}" ]; then
-            echo "No new changelog available. Exiting."
-            exit 0
+            continue_execution=no
+          else
+            continue_execution=yes
           fi
 
+          echo "continue_execution=${continue_execution}" >>"${GITHUB_ENV}"
+
       - name: Get fileid for apk
+        if: env.continue_execution == 'yes'
         run: |
           download="download.html"
           url="https://www.juggluco.nl/Juggluco/${download}"
@@ -43,6 +47,7 @@ jobs:
           grep 'Arm64 only (the usual case): ' "${download}" | sed -Ee 's/^.*\?id=([A-Za-z0-9]+)">.*$/apk_fileid=\1/' >>"${GITHUB_ENV}"
 
       - name: Get apk from Google Drive
+        if: env.continue_execution == 'yes'
         run: |
           url="https://drive.usercontent.google.com/download?id=${{ env.apk_fileid }}&export=download&confirm=t"
           curl --location --remote-name --remote-header-name "${url}"
@@ -50,31 +55,39 @@ jobs:
           echo "apk_filename=${apk_filename}" >>"${GITHUB_ENV}"
 
       - name: Store SHA256 hash of apk
+        if: env.continue_execution == 'yes'
         run: |
           sha256sum "${{ env.apk_filename }}" | cut -d " " -f 1 | sed -e 's/^/hash_apk_new=/' >>"${GITHUB_ENV}"
           echo "hash_apk_current=$(cat hash_apk_current)" >>"${GITHUB_ENV}"
 
       - name: Check for new apk
+        if: env.continue_execution == 'yes'
         run: |
           if [ "${hash_apk_current}" = "${hash_apk_new}" ]; then
-            echo "No new apk available. Exiting."
-            exit 0
+            continue_execution=no
+          else
+            continue_execution=yes
           fi
+
+          echo "continue_execution=${continue_execution}" >>"${GITHUB_ENV}"
 
       # https://code.whatever.social/questions/13469147/get-android-apk-file-versionname-or-versioncode-without-installing-apk
       - name: Find version number of apk
+        if: env.continue_execution == 'yes'
         run: |
           sudo apt-get install -y aapt
           apk_version=$(aapt dump badging ${{ env.apk_filename }} | grep -Po "(?<=\sversionName=')([0-9.]+)")
           echo "apk_version=${apk_version}" >>"${GITHUB_ENV}"
 
       - name: Write tag name
+        if: env.continue_execution == 'yes'
         run: |
           ver="${{ env.apk_version }}"
           tagname="v${ver}"
           echo "tagname=${tagname}" >>"${GITHUB_ENV}"
 
       - name: Get changes from changelog
+        if: env.continue_execution == 'yes'
         run: |
           python_dir="parse_changelog"
           changes_file="changes.md"
@@ -84,17 +97,20 @@ jobs:
           echo "changes_file=${changes_file}" >>"${GITHUB_ENV}"
 
       - name: Update current hashes
+        if: env.continue_execution == 'yes'
         run: |
           echo "${hash_changelog_new}" >hash_changelog_current
           echo "${hash_apk_new}" >hash_apk_current
 
       - name: Commit and push changes
+        if: env.continue_execution == 'yes'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "Update for version ${{ env.apk_version }}"
           file_pattern: "hash_changelog_current hash_apk_current"
 
       - name: Release apk
+        if: env.continue_execution == 'yes'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.tagname }}
