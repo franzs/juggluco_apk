@@ -19,57 +19,46 @@ jobs:
       - name: Get changelog
         run: |
           changelog="changes.html"
-          url="https://www.juggluco.nl/Juggluco/${changelog}"
-          curl --location --output "${changelog}" "${url}"
-          echo "changelog=${changelog}" >>"${GITHUB_ENV}"
+          changelog_url="https://www.juggluco.nl/Juggluco/${changelog}"
+          curl --location --output "${changelog}" "${changelog_url}"
 
-      - name: Store SHA256 hash of changelog
-        run: |
-          sha256sum "${{ env.changelog }}" | cut -d " " -f 1 | sed -e 's/^/hash_changelog_new=/' >>"${GITHUB_ENV}"
-          echo "hash_changelog_current=$(cat hash_changelog_current)" >>"${GITHUB_ENV}"
+          hash_changelog_current=$(cat hash_changelog_current)
+          hash_changelog_new=$(sha256sum "${changelog}" | cut -d " " -f 1)
 
-      - name: Check for new changelog
-        run: |
           if [ "${hash_changelog_current}" = "${hash_changelog_new}" ]; then
             continue_execution=no
           else
             continue_execution=yes
           fi
 
+          echo "changelog=${changelog}" >>"${GITHUB_ENV}"
           echo "continue_execution=${continue_execution}" >>"${GITHUB_ENV}"
+          echo "hash_changelog_new=${hash_changelog_new}" >>"${GITHUB_ENV}"
 
-      - name: Get fileid for apk
+      - name: Download apk
         if: env.continue_execution == 'yes'
         run: |
           download="download.html"
-          url="https://www.juggluco.nl/Juggluco/${download}"
-          curl --location --output "${download}" "${url}"
-          grep 'Arm64 only (the usual case): ' "${download}" | sed -Ee 's/^.*\?id=([A-Za-z0-9]+)">.*$/apk_fileid=\1/' >>"${GITHUB_ENV}"
+          download_url="https://www.juggluco.nl/Juggluco/${download}"
+          curl --location --output "${download}" "${download_url}"
 
-      - name: Get apk from Google Drive
-        if: env.continue_execution == 'yes'
-        run: |
-          url="https://drive.usercontent.google.com/download?id=${{ env.apk_fileid }}&export=download&confirm=t"
-          curl --location --remote-name --remote-header-name "${url}"
+          apk_fileid=$(grep 'Arm64 only (the usual case): ' "${download}" | sed -Ee 's/^.*\?id=([A-Za-z0-9]+)">.*$/\1/')
+          apk_url="https://drive.usercontent.google.com/download?id=${apk_fileid}&export=download&confirm=t"
+          curl --location --remote-name --remote-header-name "${apk_url}"
+
           apk_filename=$(ls -1 *.apk)
-          echo "apk_filename=${apk_filename}" >>"${GITHUB_ENV}"
+          hash_apk_current=$(cat hash_apk_current)
+          hash_apk_new=$(sha256sum "${apk_filename}" | cut -d " " -f 1)
 
-      - name: Store SHA256 hash of apk
-        if: env.continue_execution == 'yes'
-        run: |
-          sha256sum "${{ env.apk_filename }}" | cut -d " " -f 1 | sed -e 's/^/hash_apk_new=/' >>"${GITHUB_ENV}"
-          echo "hash_apk_current=$(cat hash_apk_current)" >>"${GITHUB_ENV}"
-
-      - name: Check for new apk
-        if: env.continue_execution == 'yes'
-        run: |
           if [ "${hash_apk_current}" = "${hash_apk_new}" ]; then
             continue_execution=no
           else
             continue_execution=yes
           fi
 
+          echo "apk_filename=${apk_filename}" >>"${GITHUB_ENV}"
           echo "continue_execution=${continue_execution}" >>"${GITHUB_ENV}"
+          echo "hash_apk_new=${hash_apk_new}" >>"${GITHUB_ENV}"
 
       # https://code.whatever.social/questions/13469147/get-android-apk-file-versionname-or-versioncode-without-installing-apk
       - name: Find version number of apk
@@ -77,30 +66,21 @@ jobs:
         run: |
           sudo apt-get install -y aapt
           apk_version=$(aapt dump badging ${{ env.apk_filename }} | grep -Po "(?<=\sversionName=')([0-9.]+)")
-          echo "apk_version=${apk_version}" >>"${GITHUB_ENV}"
 
-      - name: Write tag name
-        if: env.continue_execution == 'yes'
-        run: |
-          ver="${{ env.apk_version }}"
-          tagname="v${ver}"
-          echo "tagname=${tagname}" >>"${GITHUB_ENV}"
-
-      - name: Get changes from changelog
-        if: env.continue_execution == 'yes'
-        run: |
           python_dir="parse_changelog"
           changes_file="changes.md"
           python -m pip install --upgrade pip
           pip install -r "${python_dir}/requirements.txt"
-          python "${python_dir}/parse_changelog.py" "${{ env.changelog }}" "${{ env.apk_version }}" >"${changes_file}"
-          echo "changes_file=${changes_file}" >>"${GITHUB_ENV}"
+          python "${python_dir}/parse_changelog.py" "${{ env.changelog }}" "${apk_version}" >"${changes_file}"
 
-      - name: Update current hashes
-        if: env.continue_execution == 'yes'
-        run: |
-          echo "${hash_changelog_new}" >hash_changelog_current
-          echo "${hash_apk_new}" >hash_apk_current
+          echo "${{ env.hash_changelog_new }}" >hash_changelog_current
+          echo "${{ env.hash_apk_new }}" >hash_apk_current
+
+          tagname="v${apk_version}"
+
+          echo "apk_version=${apk_version}" >>"${GITHUB_ENV}"
+          echo "changes_file=${changes_file}" >>"${GITHUB_ENV}"
+          echo "tagname=${tagname}" >>"${GITHUB_ENV}"
 
       - name: Commit and push changes
         if: env.continue_execution == 'yes'
