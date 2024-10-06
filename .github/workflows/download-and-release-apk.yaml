@@ -42,7 +42,7 @@ jobs:
           download_url="https://www.juggluco.nl/Juggluco/${download}"
           curl --location --output "${download}" "${download_url}"
 
-          apk_fileid=$(grep 'Arm64 only (the usual case): ' "${download}" | sed -Ee 's/^.*\?id=([A-Za-z0-9]+)">.*$/\1/')
+          apk_fileid=$(grep 'Arm64 only (the usual case): ' "${download}" | sed -Ee 's/^.*\?id=([A-Za-z0-9_-]+)">.*$/\1/')
           apk_url="https://drive.usercontent.google.com/download?id=${apk_fileid}&export=download&confirm=t"
           curl --location --remote-name --remote-header-name "${apk_url}"
 
