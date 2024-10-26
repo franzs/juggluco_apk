@@ -18,16 +18,20 @@ def parse_changelog(html_content):
 
     body = soup.body
     for p in body.findChildren('p'):
-        ul = p.find_next_sibling('ul')
-        if ul:
-            version_number = p.get_text().strip()
-            version_number = re.sub(r'[:\.]$', '', version_number)
-            changes_html = str(ul)  # Convert the BeautifulSoup object to a string
-            changes_markdown = h.handle(changes_html)
+        if re.match(r'\d+\.\d+(\.\d+)?', p.text):
+            version_number = p.text
+            changes = []
+
+            for sibling in p.next_siblings:
+                if sibling.name == 'p' and (re.match(r'\d+\.\d+(\.\d+)?', sibling.text) or sibling.text == 'Goto Start'):
+                    break
+
+                changes.append(str(sibling))
+
+            changes_markdown = h.handle('\n'.join(changes))
             changes_markdown = re.sub(r'^ *', '', changes_markdown, flags=re.MULTILINE)
 
-            if re.match(r'\d+\.\d+(\.\d+)?', version_number):
-                changelog_dict[version_number] = changes_markdown
+            changelog_dict[version_number] = changes_markdown
 
     return changelog_dict
 
