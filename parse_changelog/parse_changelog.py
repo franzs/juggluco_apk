@@ -18,12 +18,14 @@ def parse_changelog(html_content):
 
     body = soup.body
     for p in body.findChildren('p'):
-        if re.match(r'\d+\.\d+(\.\d+)?', p.text):
-            version_number = p.text
+        stripped_p_text = p.text.strip()
+        if re.match(r'\d+\.\d+(\.\d+)?', stripped_p_text):
+            version_number = stripped_p_text
             changes = []
 
             for sibling in p.next_siblings:
-                if sibling.name == 'p' and (re.match(r'\d+\.\d+(\.\d+)?', sibling.text) or sibling.text == 'Goto Start'):
+                stripped_sibling_text = sibling.text.strip()
+                if sibling.name == 'p' and (re.match(r'\d+\.\d+(\.\d+)?', stripped_sibling_text) or stripped_sibling_text == 'Goto Start'):
                     break
 
                 changes.append(str(sibling))
