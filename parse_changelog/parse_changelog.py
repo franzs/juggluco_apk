@@ -49,7 +49,7 @@ with open(args.filename, 'r', encoding='utf-8') as file:
     changelog = parse_changelog(html_content)
 
     try:
-        print(changelog[args.version])
+        print(changelog[args.version].strip())
     except KeyError:
         print(f"No changes for version {args.version} found.")
         sys.exit(1)
