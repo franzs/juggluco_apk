@@ -21,6 +21,10 @@ def parse_changelog(html_content):
         stripped_p_text = p.text.strip()
         if re.match(r'\d+\.\d+(\.\d+)?', stripped_p_text):
             version_number = stripped_p_text
+
+            if version_number == '9.0.15':
+                version_number = '9.0.16'
+
             changes = []
 
             for sibling in p.next_siblings:
