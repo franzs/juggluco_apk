@@ -40,6 +40,7 @@ def parse_changelog(html_content):
             changelog_dict[version_number] = changes_markdown
 
     changelog_dict['9.0.17'] = 'Bug fix'
+    changelog_dict['9.0.25'] = 'Bug fix.'
 
     return changelog_dict
 
