@@ -10,6 +10,12 @@ import sys
 from bs4 import BeautifulSoup
 
 
+extra_changelog = {
+    '9.0.17': 'Bug fix',
+    '9.0.25': 'Bug fix.',
+}
+
+
 def parse_changelog(html_content):
     changelog_dict = {}
 
@@ -39,10 +45,7 @@ def parse_changelog(html_content):
 
             changelog_dict[version_number] = changes_markdown
 
-    changelog_dict['9.0.17'] = 'Bug fix'
-    changelog_dict['9.0.25'] = 'Bug fix.'
-
-    return changelog_dict
+    return changelog_dict | extra_changelog
 
 
 parser = argparse.ArgumentParser(prog=os.path.basename(__file__), description="Parses Juggluco's changelog")
