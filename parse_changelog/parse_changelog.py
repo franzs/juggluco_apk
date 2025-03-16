@@ -15,6 +15,10 @@ extra_changelog = {
     '9.0.25': 'Bug fix.',
 }
 
+version_mappings = {
+    '9.0.15': '9.0.16',
+}
+
 
 def parse_changelog(html_content):
     changelog_dict = {}
@@ -28,8 +32,8 @@ def parse_changelog(html_content):
         if re.match(r'\d+\.\d+(\.\d+)?', stripped_p_text):
             version_number = stripped_p_text
 
-            if version_number == '9.0.15':
-                version_number = '9.0.16'
+            if version_number in version_mappings:
+                version_number = version_mappings[version_number]
 
             changes = []
 
