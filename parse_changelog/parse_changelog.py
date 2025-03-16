@@ -10,6 +10,17 @@ import sys
 from bs4 import BeautifulSoup
 
 
+extra_changelog = {
+    '9.0.17': 'Bug fix',
+    '9.0.25': 'Bug fix.',
+}
+
+version_mappings = {
+    '9.0.15': '9.0.16',
+    '9.2.0': '9.2.1',
+}
+
+
 def parse_changelog(html_content):
     changelog_dict = {}
 
@@ -22,8 +33,8 @@ def parse_changelog(html_content):
         if re.match(r'\d+\.\d+(\.\d+)?', stripped_p_text):
             version_number = stripped_p_text
 
-            if version_number == '9.0.15':
-                version_number = '9.0.16'
+            if version_number in version_mappings:
+                version_number = version_mappings[version_number]
 
             changes = []
 
@@ -39,10 +50,7 @@ def parse_changelog(html_content):
 
             changelog_dict[version_number] = changes_markdown
 
-    changelog_dict['9.0.17'] = 'Bug fix'
-    changelog_dict['9.0.25'] = 'Bug fix.'
-
-    return changelog_dict
+    return changelog_dict | extra_changelog
 
 
 parser = argparse.ArgumentParser(prog=os.path.basename(__file__), description="Parses Juggluco's changelog")
