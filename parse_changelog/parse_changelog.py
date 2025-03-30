@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 extra_changelog = {
     '9.0.17': 'Bug fix',
     '9.0.25': 'Bug fix.',
+    '9.3.2': 'Bug Fixes.',
 }
 
 version_mappings = {
