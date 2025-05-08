@@ -30,7 +30,7 @@ def parse_changelog(html_content):
     h = html2text.HTML2Text()
 
     body = soup.body
-    for p in body.findChildren('p'):
+    for p in body.find_all('p'):
         stripped_p_text = p.text.strip()
         if re.match(r'\d+\.\d+(\.\d+)?', stripped_p_text):
             version_number = stripped_p_text
