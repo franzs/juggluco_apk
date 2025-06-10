@@ -84,7 +84,7 @@ jobs:
 
       - name: Release apk
         if: env.continue_execution == 'yes'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.2.2
         with:
           tag_name: ${{ env.tagname }}
           body_path: ${{ env.changes_file }}
