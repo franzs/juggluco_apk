@@ -82,13 +82,6 @@ jobs:
           echo "changes_file=${changes_file}" >>"${GITHUB_ENV}"
           echo "tagname=${tagname}" >>"${GITHUB_ENV}"
 
-      - name: Commit and push changes
-        if: env.continue_execution == 'yes'
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Update for version ${{ env.apk_version }}"
-          file_pattern: "hash_changelog_current hash_apk_current"
-
       - name: Release apk
         if: env.continue_execution == 'yes'
         uses: softprops/action-gh-release@v2
@@ -96,3 +89,10 @@ jobs:
           tag_name: ${{ env.tagname }}
           body_path: ${{ env.changes_file }}
           files: ${{ env.apk_filename }}
+
+      - name: Commit and push changes
+        if: env.continue_execution == 'yes'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update for version ${{ env.apk_version }}"
+          file_pattern: "hash_changelog_current hash_apk_current"
