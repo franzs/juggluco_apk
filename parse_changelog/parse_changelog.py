@@ -14,6 +14,7 @@ extra_changelog = {
     '9.0.17': 'Bug fix',
     '9.0.25': 'Bug fix.',
     '9.3.2': 'Bug Fixes.',
+    '9.8.1': 'Juggluco 9.8.1 is still beta. People making use of Sibionics sensor can use it to get glucose values more in line with newer versions of the official Sibionics app.',
 }
 
 version_mappings = {
