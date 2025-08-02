@@ -70,5 +70,4 @@ with open(args.filename, 'r', encoding='utf-8') as file:
     try:
         print(changelog[args.version].strip())
     except KeyError:
-        print(f"No changes for version {args.version} found.", file=sys.stderr)
-        sys.exit(1)
+        print(f"No changes for version {args.version} found")

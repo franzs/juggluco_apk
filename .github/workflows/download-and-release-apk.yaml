@@ -1,98 +1,80 @@
-name: Download+Release Juggluco
+name: Daily APK Download and Release
 
 on:
   schedule:
-    # * is a special character in YAML so you have to quote this string
-    - cron:  '23 1 * * *'
+    - cron: '0 5 * * *'  # Runs daily at 5:00 UTC
+  workflow_dispatch:     # Still allows manual runs
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+permissions:
+  contents: write
 
 jobs:
-  release_apk:
+  download_and_release:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get changelog
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scripts/requirements.txt
+
+      - name: Install Chrome and Chromedriver
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Run Python script to download APK
+        run: |
+          ./scripts/download_juggluco.py
+
+      - name: Extract version from filename
+        run: |
+          FILE=$(ls downloads/*.apk | head -n 1)
+          echo "APK_FILE=$FILE" >> $GITHUB_ENV
+
+          FILENAME=$(basename "$FILE")
+          VERSION=$(echo "$FILENAME" | grep -oP '\d+-\d+-\d+' | sed 's/-/./g')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION_TAG=v$VERSION" >> $GITHUB_ENV
+
+      - name: Check if release already exists
+        id: check_release
+        run: |
+          EXISTS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ env.VERSION_TAG }})
+          if [ "$EXISTS" == "200" ]; then
+            echo "Release already exists. Skipping."
+            echo "SKIP_RELEASE=true" >> $GITHUB_ENV
+          else
+            echo "SKIP_RELEASE=false" >> $GITHUB_ENV
+          fi
+
+      - name: Get changes
+        if: env.SKIP_RELEASE == 'false'
         run: |
           changelog="changes.html"
           changelog_url="https://www.juggluco.nl/Juggluco/${changelog}"
+          changes_file="changes.md"
+
           curl --location --output "${changelog}" "${changelog_url}"
 
-          hash_changelog_current=$(cat hash_changelog_current)
-          hash_changelog_new=$(sha256sum "${changelog}" | cut -d " " -f 1)
+          ./scripts/parse_changelog.py "${changelog}" "${{ env.VERSION }}" >"${changes_file}"
 
-          if [ "${hash_changelog_current}" = "${hash_changelog_new}" ]; then
-            continue_execution=no
-          else
-            continue_execution=yes
-          fi
-
-          echo "changelog=${changelog}" >>"${GITHUB_ENV}"
-          echo "continue_execution=${continue_execution}" >>"${GITHUB_ENV}"
-          echo "hash_changelog_new=${hash_changelog_new}" >>"${GITHUB_ENV}"
-
-      - name: Download apk
-        if: env.continue_execution == 'yes'
-        run: |
-          download="download.html"
-          download_url="https://www.juggluco.nl/Juggluco/${download}"
-          curl --location --output "${download}" "${download_url}"
-
-          apk_fileid=$(grep 'Arm64 only (the usual case): ' "${download}" | sed -Ee 's/^.*\?id=([A-Za-z0-9_-]+)">.*$/\1/')
-          apk_url="https://drive.usercontent.google.com/download?id=${apk_fileid}&export=download&confirm=t"
-          curl --location --remote-name --remote-header-name "${apk_url}"
-
-          apk_filename=$(ls -1 *.apk)
-          hash_apk_current=$(cat hash_apk_current)
-          hash_apk_new=$(sha256sum "${apk_filename}" | cut -d " " -f 1)
-
-          if [ "${hash_apk_current}" = "${hash_apk_new}" ]; then
-            continue_execution=no
-          else
-            continue_execution=yes
-          fi
-
-          echo "apk_filename=${apk_filename}" >>"${GITHUB_ENV}"
-          echo "continue_execution=${continue_execution}" >>"${GITHUB_ENV}"
-          echo "hash_apk_new=${hash_apk_new}" >>"${GITHUB_ENV}"
-
-      # https://code.whatever.social/questions/13469147/get-android-apk-file-versionname-or-versioncode-without-installing-apk
-      - name: Find version number of apk
-        if: env.continue_execution == 'yes'
-        run: |
-          sudo apt-get install -y aapt
-          apk_version=$(aapt dump badging ${{ env.apk_filename }} | grep -Po "(?<=\sversionName=')([0-9.]+)")
-
-          python_dir="parse_changelog"
-          changes_file="changes.md"
-          python -m pip install --upgrade pip
-          pip install -r "${python_dir}/requirements.txt"
-          python "${python_dir}/parse_changelog.py" "${{ env.changelog }}" "${apk_version}" >"${changes_file}"
-
-          echo "${{ env.hash_changelog_new }}" >hash_changelog_current
-          echo "${{ env.hash_apk_new }}" >hash_apk_current
-
-          tagname="v${apk_version}"
-
-          echo "apk_version=${apk_version}" >>"${GITHUB_ENV}"
           echo "changes_file=${changes_file}" >>"${GITHUB_ENV}"
-          echo "tagname=${tagname}" >>"${GITHUB_ENV}"
 
-      - name: Release apk
-        if: env.continue_execution == 'yes'
+      - name: Create GitHub Release
+        if: env.SKIP_RELEASE == 'false'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.tagname }}
+          tag_name: ${{ env.VERSION_TAG }}
           body_path: ${{ env.changes_file }}
-          files: ${{ env.apk_filename }}
-
-      - name: Commit and push changes
-        if: env.continue_execution == 'yes'
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Update for version ${{ env.apk_version }}"
-          file_pattern: "hash_changelog_current hash_apk_current"
+          files: ${{ env.APK_FILE }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
