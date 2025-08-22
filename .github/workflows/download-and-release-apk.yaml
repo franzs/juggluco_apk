@@ -2,7 +2,7 @@ name: Daily APK Download and Release
 
 on:
   schedule:
-    - cron: '0 3 * * *'  # Runs daily at 3:00 UTC
+    - cron: '12 */2 * * *'  # Run every two hours
   workflow_dispatch:     # Still allows manual runs
 
 permissions:
