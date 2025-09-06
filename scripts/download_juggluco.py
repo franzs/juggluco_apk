@@ -51,7 +51,7 @@ try:
         try:
             version_text = item.find_element(By.CLASS_NAME, "version").text
             if "-phone-" in version_text:
-                target_url = item.get_attribute("data-url")
+                target_url = item.get_attribute("data-url") + '/download/' + item.get_attribute("data-version-id")
                 print(f"Found version: {version_text}")
                 break
         except:
