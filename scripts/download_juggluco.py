@@ -32,6 +32,14 @@ try:
     print("Opening versions page...")
     driver.get("https://juggluco.en.uptodown.com/android/versions")
 
+    reject_btn = wait.until(
+        EC.element_to_be_clickable((By.ID, "cookiescript_reject"))
+    )
+    reject_btn.click()
+    print("Cookies rejected successfully.")
+
+    time.sleep(3)
+
     # Wait for versions list
     print("Looking for a '-phone-' version...")
     version_list = wait.until(EC.presence_of_element_located((By.ID, "versions-items-list")))
@@ -43,7 +51,7 @@ try:
         try:
             version_text = item.find_element(By.CLASS_NAME, "version").text
             if "-phone-" in version_text:
-                target_url = item.get_attribute("data-url")
+                target_url = item.get_attribute("data-url") + '/download/' + item.get_attribute("data-version-id")
                 print(f"Found version: {version_text}")
                 break
         except:
