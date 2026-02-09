@@ -36,7 +36,7 @@ jobs:
           echo "APK_FILE=$FILE" >> $GITHUB_ENV
 
           FILENAME=$(basename "$FILE")
-          VERSION=$(echo "$FILENAME" | grep -oP '\d+-\d+-\d+' | sed 's/-/./g')
+          VERSION=$(echo "$FILENAME" | grep -oP '\d+\.\d+\.\d+')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "VERSION_TAG=v$VERSION" >> $GITHUB_ENV
 
