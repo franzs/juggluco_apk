@@ -26,12 +26,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r scripts/requirements.txt
 
-      - name: Install Chrome and Chromedriver
-        uses: browser-actions/setup-chrome@v1
-
       - name: Run Python script to download APK
         run: |
-          ./scripts/download_juggluco.py
+          ./scripts/download_juggluco_sf.py
 
       - name: Extract version from filename
         run: |
